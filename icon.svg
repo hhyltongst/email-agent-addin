@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Email Agent</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue: #0078d4;
+      --blue-dark: #005a9e;
+      --blue-light: #e8f4fd;
+      --green: #107c10;
+      --green-light: #e8f5e9;
+      --amber: #b7791f;
+      --amber-light: #fef3c7;
+      --red: #c0392b;
+      --red-light: #fdecea;
+      --purple: #6b46c1;
+      --purple-light: #ede9fe;
+      --surface: #ffffff;
+      --surface2: #f5f5f5;
+      --surface3: #ebebeb;
+      --border: #e0e0e0;
+      --text: #1a1a1a;
+      --text2: #555;
+      --text3: #888;
+      --radius: 8px;
+      --radius-sm: 5px;
+    }
+    body { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--text); background: var(--surface); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* Header */
+    .header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--blue); color: #fff; flex-shrink: 0; }
+    .header-icon { font-size: 18px; }
+    .header h1 { font-size: 14px; font-weight: 600; flex: 1; }
+    .header-badge { font-size: 10px; background: rgba(255,255,255,0.25); padding: 2px 7px; border-radius: 20px; }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
+    .tab { flex: 1; padding: 9px 4px; font-size: 12px; text-align: center; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent; transition: all 0.15s; font-weight: 500; }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab:hover:not(.active) { color: var(--text2); background: var(--surface2); }
+
+    /* Content */
+    .content { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .panel { display: none; flex-direction: column; gap: 10px; }
+    .panel.active { display: flex; }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+    .card-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+
+    /* Email meta */
+    .email-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+    .meta-row { display: flex; gap: 6px; font-size: 12px; }
+    .meta-label { color: var(--text3); min-width: 44px; flex-shrink: 0; }
+    .meta-value { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Tags */
+    .tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+    .tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .tag-urgent { background: var(--red-light); color: var(--red); }
+    .tag-finance { background: var(--amber-light); color: var(--amber); }
+    .tag-project { background: var(--blue-light); color: var(--blue-dark); }
+    .tag-meeting { background: var(--green-light); color: var(--green); }
+    .tag-hr { background: var(--green-light); color: var(--green); }
+    .tag-newsletter { background: var(--purple-light); color: var(--purple); }
+
+    /* AI output */
+    .ai-output { font-size: 12px; line-height: 1.65; color: var(--text2); white-space: pre-wrap; }
+    .ai-output strong { color: var(--text); font-weight: 600; }
+
+    /* Textarea */
+    textarea { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 10px; font-size: 12px; font-family: 'Inter', sans-serif; line-height: 1.6; resize: vertical; color: var(--text); background: var(--surface); min-height: 100px; }
+    textarea:focus { outline: none; border-color: var(--blue); }
+
+    /* Inputs */
+    input[type="text"] { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--surface); }
+    input:focus { outline: none; border-color: var(--blue); }
+
+    /* Buttons */
+    .btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; font-size: 12px; font-weight: 500; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; border: 1px solid transparent; width: 100%; font-family: 'Inter', sans-serif; }
+    .btn-primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .btn-primary:hover { background: var(--blue-dark); }
+    .btn-secondary { background: var(--surface2); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--surface3); }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-success:hover { background: #0a5f0a; }
+    .btn-row { display: flex; gap: 6px; }
+    .btn-row .btn { flex: 1; }
+
+    /* Folder list */
+    .folder-list { display: flex; flex-direction: column; gap: 4px; }
+    .folder-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); background: var(--surface); font-size: 12px; font-weight: 500; transition: all 0.15s; }
+    .folder-item:hover { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+    .folder-icon { font-size: 15px; }
+    .folder-count { margin-left: auto; background: var(--surface3); font-size: 10px; padding: 1px 6px; border-radius: 20px; color: var(--text3); }
+
+    /* Status */
+    .status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text3); padding: 6px 10px; background: var(--surface2); border-radius: var(--radius-sm); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .status-ok { background: var(--green); }
+    .status-loading { background: var(--amber); animation: pulse 1s infinite; }
+    .status-err { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* Spinner */
+    .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-row { display: flex; align-items: center; gap: 8px; color: var(--text3); font-size: 12px; padding: 8px 0; }
+
+    /* Chat */
+    .chat-history { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .chat-bubble { padding: 9px 11px; border-radius: var(--radius); font-size: 12px; line-height: 1.6; }
+    .chat-user { background: var(--blue); color: #fff; align-self: flex-end; border-radius: var(--radius) var(--radius) 2px var(--radius); max-width: 90%; }
+    .chat-ai { background: var(--surface2); color: var(--text); align-self: flex-start; border-radius: var(--radius) var(--radius) var(--radius) 2px; max-width: 95%; white-space: pre-wrap; }
+
+    /* Section label */
+    .section-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.4px; padding: 4px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+
+    /* Footer */
+    .footer { padding: 8px 12px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+
+    /* Divider */
+    .divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* Select */
+    select { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--text); background: var(--surface); }
+    select:focus { outline: none; border-color: var(--blue); }
+
+    .success-banner { background: var(--green-light); color: var(--green); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; border: 1px solid #a3d9a3; }
+    .error-banner { background: var(--red-light); color: var(--red); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-icon">🤖</span>
+  <h1>AI Email Agent</h1>
+  <span class="header-badge" id="connectionBadge">Connecting…</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('summary')">Summary</div>
+  <div class="tab" onclick="switchTab('reply')">Reply</div>
+  <div class="tab" onclick="switchTab('folders')">Folders</div>
+  <div class="tab" onclick="switchTab('chat')">Chat</div>
+</div>
+
+<div class="content">
+
+  <!-- SUMMARY TAB -->
+  <div class="panel active" id="panel-summary">
+    <div id="emailMetaCard" class="card" style="display:none">
+      <div class="card-title">📧 Current email</div>
+      <div class="email-meta">
+        <div class="meta-row"><span class="meta-label">From</span><span class="meta-value" id="metaFrom">—</span></div>
+        <div class="meta-row"><span class="meta-label">Subject</span><span class="meta-value" id="metaSubject">—</span></div>
+        <div class="meta-row"><span class="meta-label">Date</span><span class="meta-value" id="metaDate">—</span></div>
+      </div>
+      <div class="tags" id="emailTags"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">✨ AI Summary</div>
+      <div id="summaryOutput" class="ai-output">Open an email and click Summarize.</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="summarizeCurrent()">
+      <span id="sumBtnText">✨ Summarize this email</span>
+    </button>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="switchTab('reply')">↩ Draft reply</button>
+      <button class="btn btn-secondary" onclick="markAndArchive()">📦 Archive</button>
+    </div>
+
+    <div id="statusSummary" class="status" style="display:none">
+      <div class="status-dot status-loading"></div>
+      <span id="statusSummaryText">Working…</span>
+    </div>
+  </div>
+
+  <!-- REPLY TAB -->
+  <div class="panel" id="panel-reply">
+    <div class="card">
+      <div class="card-title">🎯 Tone</div>
+      <select id="replyTone">
+        <option value="professional">Professional</option>
+        <option value="friendly">Friendly & warm</option>
+        <option value="concise">Short & direct</option>
+        <option value="formal">Formal</option>
+        <option value="assertive">Assertive</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💬 Context (optional)</div>
+      <textarea id="replyContext" placeholder="Any extra context for the AI? e.g. 'decline politely' or 'push back on the deadline'…" rows="2" style="min-height:60px"></textarea>
+    </div>
+
+    <button class="btn btn-primary" onclick="draftReply()">
+      <span id="draftBtnText">✨ Draft reply</span>
+    </button>
+
+    <div id="draftCard" style="display:none" class="card">
+      <div class="card-title">📝 Draft — edit before sending</div>
+      <textarea id="draftOutput" rows="8"></textarea>
+      <div style="margin-top:8px" class="btn-row">
+        <button class="btn btn-success" onclick="sendReply()">📤 Send</button>
+        <button class="btn btn-secondary" onclick="draftReply()">🔄 Re-draft</button>
+      </div>
+    </div>
+
+    <div id="replySent" class="success-banner" style="display:none">✅ Reply sent!</div>
+    <div id="replyError" class="error-banner" style="display:none"></div>
+  </div>
+
+  <!-- FOLDERS TAB -->
+  <div class="panel" id="panel-folders">
+    <div class="card">
+      <div class="card-title">📁 Move this email to…</div>
+      <div class="folder-list" id="folderMoveList"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Create new folder</div>
+    <input type="text" id="newFolderName" placeholder="Folder name…" />
+    <button class="btn btn-primary" onclick="createFolder()">
+      <span id="createFolderBtnText">📁 Create folder</span>
+    </button>
+    <div id="folderStatus" style="display:none"></div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">AI auto-organize inbox</div>
+    <button class="btn btn-secondary" onclick="autoOrganize()">🤖 Organize inbox with AI ↗</button>
+  </div>
+
+  <!-- CHAT TAB -->
+  <div class="panel" id="panel-chat">
+    <div class="chat-history" id="chatHistory">
+      <div class="chat-bubble chat-ai">Hi! I'm your email agent. Ask me anything about this email, or I can help you compose, organize, or find emails.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer input for chat -->
+<div class="footer" id="chatFooter" style="display:none">
+  <div class="btn-row">
+    <input type="text" id="chatInput" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendChat()" style="flex:1" />
+    <button class="btn btn-primary" style="width:auto;padding:8px 14px" onclick="sendChat()">↗</button>
+  </div>
+</div>
+
+<script>
+  let currentEmail = { subject:'', from:'', body:'', date:'' };
+  let chatHistory = [];
+  const FOLDERS = [
+    { name:'Inbox', icon:'📥', id:'inbox' },
+    { name:'Important', icon:'⭐', id:'important' },
+    { name:'Finance', icon:'💰', id:'finance' },
+    { name:'Projects', icon:'🗂️', id:'projects' },
+    { name:'HR / People', icon:'👥', id:'hr' },
+    { name:'Newsletters', icon:'📰', id:'newsletters' },
+    { name:'Archive', icon:'📦', id:'archive' },
+  ];
+
+  Office.onReady(info => {
+    if (info.host === Office.HostType.Outlook) {
+      document.getElementById('connectionBadge').textContent = 'Connected';
+      document.getElementById('connectionBadge').style.background = 'rgba(16,124,16,0.35)';
+      loadCurrentEmail();
+      renderFolderMoveList();
+    }
+  });
+
+  function loadCurrentEmail() {
+    const item = Office.context.mailbox.item;
+    if (!item) return;
+    currentEmail.subject = item.subject || '';
+    currentEmail.date = item.dateTimeCreated ? new Date(item.dateTimeCreated).toLocaleString() : '';
+    if (item.from) currentEmail.from = item.from.displayName + ' <' + item.from.emailAddress + '>';
+    item.body.getAsync(Office.CoercionType.Text, result => {
+      if (result.status === Office.AsyncResultStatus.Succeeded) {
+        currentEmail.body = result.value.slice(0, 3000);
+        document.getElementById('emailMetaCard').style.display = 'block';
+        document.getElementById('metaFrom').textContent = currentEmail.from;
+        document.getElementById('metaSubject').textContent = currentEmail.subject;
+        document.getElementById('metaDate').textContent = currentEmail.date;
+        renderTags(currentEmail.subject + ' ' + currentEmail.body);
+      }
+    });
+  }
+
+  function renderTags(text) {
+    const t = text.toLowerCase();
+    const tags = [];
+    if (/invoice|payment|budget|billing|\$|finance/.test(t)) tags.push(['finance','tag-finance']);
+    if (/urgent|asap|action required|immediately/.test(t)) tags.push(['urgent','tag-urgent']);
+    if (/project|sprint|milestone|launch/.test(t)) tags.push(['project','tag-project']);
+    if (/meeting|calendar|invite|standup/.test(t)) tags.push(['meeting','tag-meeting']);
+    if (/hr|onboard|hire|employee/.test(t)) tags.push(['hr','tag-hr']);
+    if (/newsletter|digest|unsubscribe/.test(t)) tags.push(['newsletter','tag-newsletter']);
+    document.getElementById('emailTags').innerHTML = tags.slice(0,3).map(([n,c])=>`<span class="tag ${c}">${n}</span>`).join('');
+  }
+
+  function renderFolderMoveList() {
+    document.getElementById('folderMoveList').innerHTML = FOLDERS.map(f =>
+      `<div class="folder-item" onclick="moveToFolder('${f.id}','${f.name}')">
+        <span class="folder-icon">${f.icon}</span>
+        <span>${f.name}</span>
+      </div>`
+    ).join('');
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach((t,i) => {
+      t.classList.toggle('active', ['summary','reply','folders','chat'][i] === tab);
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-'+tab).classList.add('active');
+    document.getElementById('chatFooter').style.display = tab === 'chat' ? 'block' : 'none';
+    if (tab === 'chat') document.getElementById('chatInput').focus();
+  }
+
+  async function callAgent(userMessage, systemPrompt) {
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userMessage, system: systemPrompt, history: chatHistory })
+    });
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    return data.text || '';
+  }
+
+  async function summarizeCurrent() {
+    if (!currentEmail.subject && !currentEmail.body) {
+      document.getElementById('summaryOutput').textContent = 'No email loaded. Open an email first.';
+      return;
+    }
+    document.getElementById('sumBtnText').textContent = '⏳ Summarizing…';
+    document.getElementById('summaryOutput').textContent = 'Analyzing email…';
+    try {
+      const text = await callAgent(
+        `Summarize this email in 2-3 sentences, then list up to 3 suggested actions as a short bullet list.\n\nFrom: ${currentEmail.from}\nSubject: ${currentEmail.subject}\n\n${currentEmail.body}`,
+        'You are a concise email assistant. Provide a brief summary then bullet action items. Plain text only, no markdown symbols.'
+      );
+      document.getElementById('summaryOutput').textContent = text;
+    } catch(e) {
+      document.getElementById('summaryOutput').textContent = 'Error: ' + e.message;
+    }
+    document.getElementById('sumBtnText').textContent = '✨ Summarize this email';
+  }
+
+  async function draftReply() {
+    if (!currentEmail.subject) { alert('Open an email first.'); return; }
+    const tone = document.getElementById('replyTone').value;
+    const context = document.getElementById('replyContext').value;
+    document.getElementById('draftBtnText').textContent = '⏳ Drafting…';
+    document.getElementById('draftCard').style.display = 'none';
+    document.getElementById('replySent').style.display = 'none';
+    document.getElementById('replyError').style.display = 'none';
+    try {
+      const text = await callAgent(
+        `Draft a ${tone} reply to this email. ${context ? 'Extra context: ' + context : ''}\n\nFrom: ${currentEmail.from}\nSubject: ${currentEmail.subject}\n\n${currentEmail.body}`,
+        'You are an email assistant. Draft only the reply body text. No subject line, no "To:" field, no markdown. Just the reply text ready to send.'
+      );
+      document.getElementById('draftOutput').value = text;
+      document.getElementById('draftCard').style.display = 'block';
+    } catch(e) {
+      document.getElementById('replyError').textContent = 'Error: ' + e.message;
+      document.getElementById('replyError').style.display = 'block';
+    }
+    document.getElementById('draftBtnText').textContent = '✨ Draft reply';
+  }
+
+  function sendReply() {
+    const body = document.getElementById('draftOutput').value;
+    if (!body.trim()) return;
+    Office.context.mailbox.item.displayReplyAllForm({ htmlBody: body.replace(/\n/g,'<br>') });
+    document.getElementById('replySent').style.display = 'block';
+  }
+
+  function markAndArchive() {
+    Office.context.mailbox.item.moveToAsync(
+      Office.MailboxEnums.WellKnownFolderName.Archive,
+      result => {
+        if (result.status === Office.AsyncResultStatus.Succeeded) {
+          document.getElementById('summaryOutput').textContent = '✅ Email archived.';
+        }
+      }
+    );
+  }
+
+  function moveToFolder(folderId, folderName) {
+    const statusEl = document.getElementById('folderStatus');
+    statusEl.className = 'success-banner';
+    statusEl.textContent = `✅ Marked for "${folderName}" — use Outlook rules or drag to complete the move.`;
+    statusEl.style.display = 'block';
+  }
+
+  async function createFolder() {
+    const name = document.getElementById('newFolderName').value.trim();
+    if (!name) return;
+    document.getElementById('createFolderBtnText').textContent = '⏳ Creating…';
+    const statusEl = document.getElementById('folderStatus');
+    try {
+      const res = await fetch('/api/create-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderName: name })
+      });
+      const data = await res.json();
+      if (data.success) {
+        statusEl.className = 'success-banner';
+        statusEl.textContent = `✅ Folder "${name}" created in your mailbox!`;
+        document.getElementById('newFolderName').value = '';
+        FOLDERS.push({ name, icon:'📁', id: name.toLowerCase().replace(/\s+/g,'-') });
+        renderFolderMoveList();
+      } else {
+        throw new Error(data.error || 'Unknown error');
+      }
+    } catch(e) {
+      statusEl.className = 'error-banner';
+      statusEl.textContent = '❌ ' + e.message;
+    }
+    statusEl.style.display = 'block';
+    document.getElementById('createFolderBtnText').textContent = '📁 Create folder';
+  }
+
+  async function autoOrganize() {
+    const btn = event.target;
+    btn.textContent = '⏳ Organizing…';
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/organize', { method: 'POST' });
+      const data = await res.json();
+      const statusEl = document.getElementById('folderStatus');
+      statusEl.className = 'success-banner';
+      statusEl.textContent = data.message || '✅ Inbox organized!';
+      statusEl.style.display = 'block';
+    } catch(e) {
+      alert('Error: ' + e.message);
+    }
+    btn.textContent = '🤖 Organize inbox with AI ↗';
+    btn.disabled = false;
+  }
+
+  async function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    appendChat('user', msg);
+    chatHistory.push({ role:'user', content: msg });
+    const thinking = appendChat('ai', '⏳ Thinking…');
+    try {
+      const emailContext = currentEmail.subject
+        ? `Current email — From: ${currentEmail.from}, Subject: ${currentEmail.subject}\n${currentEmail.body.slice(0,1000)}`
+        : '';
+      const messages = emailContext
+        ? [{ role:'user', content: emailContext }, ...chatHistory]
+        : chatHistory;
+      const res = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, system: 'You are a helpful email assistant. Answer concisely.', history: messages })
+      });
+      const data = await res.json();
+      const text = data.text || 'Sorry, no response.';
+      thinking.textContent = text;
+      chatHistory.push({ role:'assistant', content: text });
+    } catch(e) {
+      thinking.textContent = 'Error: ' + e.message;
+    }
+    document.getElementById('chatHistory').scrollTop = 9999;
+  }
+
+  function appendChat(role, text) {
+    const div = document.createElement('div');
+    div.className = 'chat-bubble chat-' + role;
+    div.textContent = text;
+    document.getElementById('chatHistory').appendChild(div);
+    document.getElementById('chatHistory').scrollTop = 9999;
+    return div;
+  }
+</script>
+</body>
+</html>
